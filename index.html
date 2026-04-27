@@ -3,48 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🏸 AI Swing Coach Pro</title>
+<title>🏸 AI Swing Coach Pro V8</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
     --bg: #060d1a; --surface: #0c1628; --card: #111e35; --border: #1c2e4a;
     --cyan: #00e5ff; --orange: #ff6b35; --green: #00ff88; --red: #ff3d5a; --text: #ddeeff; --muted: #3a5070;
   }
-  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   
-  #header { padding: 15px; background: var(--surface); text-align: center; border-bottom: 1px solid var(--border); }
-  #header h1 { font-size: 18px; color: var(--cyan); letter-spacing: 1px; }
+  /* 헤더 슬림화 */
+  #header { padding: 8px; background: var(--surface); text-align: center; border-bottom: 1px solid var(--border); }
+  #header h1 { font-size: 14px; color: var(--cyan); letter-spacing: 1px; }
 
-  /* 카메라 영역 확대 및 줌 방지 */
-  #cam-container { position: relative; flex: 1; width: 100%; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  video, #replay-video { width: 100%; height: 100%; object-fit: contain; transform: scaleX(1); } /* contain으로 설정하여 전신이 다 보이게 함 */
+  /* 메인 컨테이너: 해상도에 맞게 유동적 조절 */
+  #main-container { position: relative; flex: 1; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  
+  #cam-area { position: relative; flex: 3; width: 100%; background: #000; display: flex; align-items: center; justify-content: center; }
+  video, #replay-video { width: 100%; height: 100%; object-fit: contain; } /* 줌 방지: 전체 다 보이게 */
   #skeleton-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 
   /* 오버레이 디자인 */
-  #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: white; font-size: 120px; font-weight: 900; z-index: 10; }
-  #timer-badge { position: absolute; top: 20px; right: 20px; background: var(--red); color: white; padding: 8px 16px; border-radius: 30px; font-size: 18px; font-weight: bold; display: none; z-index: 5; }
-  #replay-label { position: absolute; top: 20px; left: 20px; background: var(--orange); color: white; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 800; display: none; z-index: 5; }
+  #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); color: white; font-size: 100px; font-weight: 900; z-index: 10; }
+  #timer-badge { position: absolute; top: 15px; right: 15px; background: var(--red); color: white; padding: 6px 14px; border-radius: 20px; font-size: 16px; font-weight: bold; display: none; z-index: 5; }
+  #replay-label { position: absolute; top: 15px; left: 15px; background: var(--orange); color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; display: none; z-index: 5; }
 
-  /* 분석 결과 안내판 - 글자 크기 대폭 확대 */
-  #result-overlay { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(17, 30, 53, 0.95); border: 3px solid var(--cyan); border-radius: 20px; padding: 25px; display: none; z-index: 8; animation: slideUp 0.5s ease-out; }
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  
-  .score-title { font-size: 42px; font-weight: 900; color: #ffd234; text-align: center; margin-bottom: 20px; text-shadow: 0 0 10px rgba(255, 210, 52, 0.5); }
-  .check-list { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-  .check-item { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); }
-  .check-item.success { border-color: var(--green); background: rgba(0, 255, 136, 0.1); }
-  .item-label { font-size: 16px; color: var(--text); margin-bottom: 8px; font-weight: bold; }
-  .item-status { font-size: 24px; font-weight: 900; }
+  /* 분석 결과 영역: 화면 하단에 고정 및 폰트 확대 */
+  #result-panel { position: relative; flex: 2; background: var(--surface); border-top: 2px solid var(--border); padding: 15px; display: none; overflow-y: auto; z-index: 8; }
+  .score-title { font-size: 32px; font-weight: 900; color: #ffd234; text-align: center; margin-bottom: 15px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check-item { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+  .check-item.success { border-color: var(--green); background: rgba(0, 255, 136, 0.05); }
+  .item-label { font-size: 14px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
+  .item-status { font-size: 22px; font-weight: 900; }
   .success .item-status { color: var(--green); }
-  .fail .item-status { color: var(--muted); }
+  .fail .item-status { color: var(--red); opacity: 0.6; }
 
-  /* 하단 컨트롤러 */
-  #controls { padding: 20px; background: var(--surface); display: flex; flex-direction: column; gap: 15px; }
-  #btn-main { height: 75px; border-radius: 20px; border: none; background: linear-gradient(135deg, var(--cyan), #0099bb); font-size: 24px; font-weight: 900; cursor: pointer; color: #001a22; box-shadow: 0 5px 15px rgba(0, 229, 255, 0.3); }
-  #btn-main.rec { background: var(--red); color: white; animation: blink 1s infinite; }
-  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-  
-  #hand-select { background: var(--card); color: var(--cyan); border: 2px solid var(--border); padding: 12px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; }
+  /* 컨트롤 섹션 */
+  #bottom-controls { padding: 15px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
+  #btn-main { height: 60px; border-radius: 15px; border: none; background: linear-gradient(135deg, var(--cyan), #0099bb); font-size: 20px; font-weight: 800; cursor: pointer; color: #001a22; }
+  #btn-main.rec { background: var(--red); color: white; }
+  #hand-select { background: var(--card); color: var(--cyan); border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-size: 14px; font-weight: bold; width: 100%; }
+
+  /* 가로 모드(태블릿 등) 전용 최적화 */
+  @media (orientation: landscape) {
+    #result-panel { flex: 1.5; padding: 10px; }
+    .score-title { font-size: 26px; margin-bottom: 10px; }
+    .item-status { font-size: 18px; }
+    #btn-main { height: 50px; font-size: 18px; }
+  }
 </style>
 </head>
 <body>
@@ -53,18 +60,20 @@
   <h1>🏸 AI SWING ANALYZER</h1>
 </div>
 
-<div id="cam-container">
-  <div id="countdown">3</div>
-  <div id="timer-badge">REC 10s</div>
-  <div id="replay-label">SLOW REPLAY (0.5x)</div>
-  
-  <video id="video" playsinline muted autoplay></video>
-  <video id="replay-video" playsinline loop></video>
-  <svg id="skeleton-svg" viewBox="0 0 640 480"></svg>
+<div id="main-container">
+  <div id="cam-area">
+    <div id="countdown">3</div>
+    <div id="timer-badge">REC 10s</div>
+    <div id="replay-label">SLOW REPLAY (0.5x)</div>
+    
+    <video id="video" playsinline muted autoplay></video>
+    <video id="replay-video" playsinline loop></video>
+    <svg id="skeleton-svg" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
 
-  <div id="result-overlay">
+  <div id="result-panel">
     <div class="score-title" id="final-score">분석 결과: 0/4</div>
-    <div class="check-list">
+    <div class="check-grid">
       <div class="check-item" id="c1"><div class="item-label">1. 헤드 드롭</div><div class="item-status">미흡</div></div>
       <div class="check-item" id="c2"><div class="item-label">2. 정면 타구</div><div class="item-status">미흡</div></div>
       <div class="check-item" id="c3"><div class="item-label">3. 최고 타점</div><div class="item-status">미흡</div></div>
@@ -73,7 +82,7 @@
   </div>
 </div>
 
-<div id="controls">
+<div id="bottom-controls">
   <select id="hand-select">
     <option value="right">오른손잡이 (Right-Handed)</option>
     <option value="left">왼손잡이 (Left-Handed)</option>
@@ -92,7 +101,7 @@ const replayVid = document.getElementById('replay-video');
 const btn = document.getElementById('btn-main');
 const countdownEl = document.getElementById('countdown');
 const timerBadge = document.getElementById('timer-badge');
-const resultOverlay = document.getElementById('result-overlay');
+const resultPanel = document.getElementById('result-panel');
 
 async function init() {
   const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -124,17 +133,21 @@ function checkSwingLogic(lm) {
   const oppWrist = hand === 'right' ? 15 : 16;
   const s = lm[main.s], e = lm[main.e], w = lm[main.w], ow = lm[oppWrist];
 
+  // 1. 헤드 드롭
   const elbowAngle = calcAngle(lm[main.s], lm[main.e], lm[main.w]);
-  if (elbowAngle < 95 && e.y < s.y) analysis.headDrop = true;
-  if (Math.abs(w.x - s.x) < 0.15 && w.y < s.y) analysis.faceFront = true;
+  if (elbowAngle < 98 && e.y < s.y) analysis.headDrop = true;
+  // 2. 정면 타구
+  if (Math.abs(w.x - s.x) < 0.16 && w.y < s.y) analysis.faceFront = true;
+  // 3. 최고 타점
   const dist = Math.sqrt(Math.pow(w.x-s.x,2) + Math.pow(w.y-s.y,2));
   if (dist > 0.3) analysis.maxExtension = true;
+  // 4. 반대 손
   if (ow.y < lm[11].y || ow.y < lm[12].y) analysis.oppositeHand = true;
 }
 
 function handleStart() {
   if (isReplaying) return location.reload();
-  resultOverlay.style.display = 'none';
+  resultPanel.style.display = 'none';
   btn.disabled = true;
   let count = 3;
   countdownEl.textContent = count;
@@ -152,16 +165,14 @@ function handleStart() {
 }
 
 function startRec() {
-  isRecording = true;
-  chunks = [];
+  isRecording = true; chunks = [];
   analysis = { headDrop:false, faceFront:false, maxExtension:false, oppositeHand:false };
   mediaRecorder = new MediaRecorder(video.srcObject);
   mediaRecorder.ondataavailable = e => chunks.push(e.data);
   mediaRecorder.onstop = showResult;
   mediaRecorder.start();
   
-  btn.disabled = false;
-  btn.classList.add('rec');
+  btn.disabled = false; btn.classList.add('rec');
   timerBadge.style.display = 'block';
   
   let timeLeft = 10;
@@ -184,15 +195,15 @@ function showResult() {
   replayVid.playbackRate = 0.5;
   replayVid.play();
   
-  btn.textContent = "다시 측정하기";
+  btn.textContent = "다시 시작하기";
   btn.classList.remove('rec');
   timerBadge.style.display = 'none';
   document.getElementById('replay-label').style.display = 'block';
-  resultOverlay.style.display = 'block';
+  resultPanel.style.display = 'block';
   
   const results = [analysis.headDrop, analysis.faceFront, analysis.maxExtension, analysis.oppositeHand];
   const score = results.filter(Boolean).length;
-  document.getElementById('final-score').textContent = `SCORE: ${score}/4`;
+  document.getElementById('final-score').textContent = `결과: ${score}/4`;
   
   results.forEach((res, i) => {
     const el = document.getElementById(`c${i+1}`);

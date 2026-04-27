@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🏸 AI Swing Coach Pro V8</title>
+<title>🏸 AI Swing Coach Pro V9</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
@@ -12,56 +12,65 @@
   }
   body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   
-  /* 헤더 슬림화 */
-  #header { padding: 8px; background: var(--surface); text-align: center; border-bottom: 1px solid var(--border); }
-  #header h1 { font-size: 14px; color: var(--cyan); letter-spacing: 1px; }
+  #header { padding: 10px; background: var(--surface); text-align: center; border-bottom: 1px solid var(--border); }
+  #header h1 { font-size: 16px; color: var(--cyan); letter-spacing: 1px; }
 
-  /* 메인 컨테이너: 해상도에 맞게 유동적 조절 */
-  #main-container { position: relative; flex: 1; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  /* 메인 컨테이너: 가로/세로에 따라 방향 전환 */
+  #main-layout { position: relative; flex: 1; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
   
-  #cam-area { position: relative; flex: 3; width: 100%; background: #000; display: flex; align-items: center; justify-content: center; }
-  video, #replay-video { width: 100%; height: 100%; object-fit: contain; } /* 줌 방지: 전체 다 보이게 */
+  /* 왼쪽/위쪽: 카메라 영역 */
+  #cam-section { position: relative; flex: 1; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  video, #replay-video { width: 100%; height: 100%; object-fit: contain; }
   #skeleton-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 
-  /* 오버레이 디자인 */
+  /* 오른쪽/아래쪽: 피드백 영역 */
+  #feedback-section { flex: 0.8; background: var(--surface); border-left: 2px solid var(--border); padding: 20px; display: flex; flex-direction: column; justify-content: center; transition: all 0.3s; }
+  
+  /* 오버레이 요소들 */
   #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); color: white; font-size: 100px; font-weight: 900; z-index: 10; }
   #timer-badge { position: absolute; top: 15px; right: 15px; background: var(--red); color: white; padding: 6px 14px; border-radius: 20px; font-size: 16px; font-weight: bold; display: none; z-index: 5; }
   #replay-label { position: absolute; top: 15px; left: 15px; background: var(--orange); color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; display: none; z-index: 5; }
 
-  /* 분석 결과 영역: 화면 하단에 고정 및 폰트 확대 */
-  #result-panel { position: relative; flex: 2; background: var(--surface); border-top: 2px solid var(--border); padding: 15px; display: none; overflow-y: auto; z-index: 8; }
-  .score-title { font-size: 32px; font-weight: 900; color: #ffd234; text-align: center; margin-bottom: 15px; }
-  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .check-item { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+  /* 분석 결과 디자인 */
+  .score-title { font-size: 38px; font-weight: 900; color: #ffd234; text-align: center; margin-bottom: 20px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .check-item { background: var(--card); padding: 15px; border-radius: 15px; border: 2px solid var(--border); text-align: center; }
   .check-item.success { border-color: var(--green); background: rgba(0, 255, 136, 0.05); }
-  .item-label { font-size: 14px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
-  .item-status { font-size: 22px; font-weight: 900; }
+  .check-item.fail { border-color: var(--red); opacity: 0.7; }
+  .item-label { font-size: 14px; color: var(--muted); margin-bottom: 8px; font-weight: bold; }
+  .item-status { font-size: 26px; font-weight: 900; }
   .success .item-status { color: var(--green); }
-  .fail .item-status { color: var(--red); opacity: 0.6; }
+  .fail .item-status { color: var(--red); }
 
-  /* 컨트롤 섹션 */
-  #bottom-controls { padding: 15px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
-  #btn-main { height: 60px; border-radius: 15px; border: none; background: linear-gradient(135deg, var(--cyan), #0099bb); font-size: 20px; font-weight: 800; cursor: pointer; color: #001a22; }
+  /* 하단 컨트롤 바 */
+  #footer-controls { padding: 15px; background: var(--surface); display: flex; gap: 10px; border-top: 1px solid var(--border); }
+  #btn-main { flex: 2; height: 65px; border-radius: 15px; border: none; background: linear-gradient(135deg, var(--cyan), #0099bb); font-size: 22px; font-weight: 800; cursor: pointer; color: #001a22; }
   #btn-main.rec { background: var(--red); color: white; }
-  #hand-select { background: var(--card); color: var(--cyan); border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-size: 14px; font-weight: bold; width: 100%; }
+  #hand-select { flex: 1; background: var(--card); color: var(--cyan); border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-size: 14px; font-weight: bold; }
 
-  /* 가로 모드(태블릿 등) 전용 최적화 */
+  /* ── 가로 모드 (Orientation Landscape) 최적화 ── */
   @media (orientation: landscape) {
-    #result-panel { flex: 1.5; padding: 10px; }
-    .score-title { font-size: 26px; margin-bottom: 10px; }
-    .item-status { font-size: 18px; }
-    #btn-main { height: 50px; font-size: 18px; }
+    #main-layout { flex-direction: row; }
+    #cam-section { flex: 1.2; }
+    #feedback-section { flex: 0.8; display: flex !important; } /* 가로일 땐 항상 보임 */
+    .score-title { font-size: 32px; }
+    .item-status { font-size: 20px; }
+    #footer-controls { padding: 10px 20px; }
+    #btn-main { height: 55px; }
   }
+
+  /* 초기 대기 상태 안내 문구 */
+  #idle-msg { text-align: center; font-size: 18px; color: var(--muted); line-height: 1.6; }
 </style>
 </head>
 <body>
 
 <div id="header">
-  <h1>🏸 AI SWING ANALYZER</h1>
+  <h1>🏸 AI SWING ANALYZER PRO</h1>
 </div>
 
-<div id="main-container">
-  <div id="cam-area">
+<div id="main-layout">
+  <div id="cam-section">
     <div id="countdown">3</div>
     <div id="timer-badge">REC 10s</div>
     <div id="replay-label">SLOW REPLAY (0.5x)</div>
@@ -71,21 +80,24 @@
     <svg id="skeleton-svg" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
 
-  <div id="result-panel">
-    <div class="score-title" id="final-score">분석 결과: 0/4</div>
-    <div class="check-grid">
-      <div class="check-item" id="c1"><div class="item-label">1. 헤드 드롭</div><div class="item-status">미흡</div></div>
-      <div class="check-item" id="c2"><div class="item-label">2. 정면 타구</div><div class="item-status">미흡</div></div>
-      <div class="check-item" id="c3"><div class="item-label">3. 최고 타점</div><div class="item-status">미흡</div></div>
-      <div class="check-item" id="c4"><div class="item-label">4. 반대 손</div><div class="item-status">미흡</div></div>
+  <div id="feedback-section">
+    <div id="idle-msg">분석 시작 버튼을 눌러<br>스윙을 촬영하세요.</div>
+    <div id="result-content" style="display:none;">
+      <div class="score-title" id="final-score">SCORE: 0/4</div>
+      <div class="check-grid">
+        <div class="check-item" id="c1"><div class="item-label">1. 헤드 드롭</div><div class="item-status">미흡</div></div>
+        <div class="check-item" id="c2"><div class="item-label">2. 정면 타구</div><div class="item-status">미흡</div></div>
+        <div class="check-item" id="c3"><div class="item-label">3. 최고 타점</div><div class="item-status">미흡</div></div>
+        <div class="check-item" id="c4"><div class="item-label">4. 반대 손</div><div class="item-status">미흡</div></div>
+      </div>
     </div>
   </div>
 </div>
 
-<div id="bottom-controls">
+<div id="footer-controls">
   <select id="hand-select">
-    <option value="right">오른손잡이 (Right-Handed)</option>
-    <option value="left">왼손잡이 (Left-Handed)</option>
+    <option value="right">오른손잡이</option>
+    <option value="left">왼손잡이</option>
   </select>
   <button id="btn-main" onclick="handleStart()">분석 시작</button>
 </div>
@@ -101,7 +113,9 @@ const replayVid = document.getElementById('replay-video');
 const btn = document.getElementById('btn-main');
 const countdownEl = document.getElementById('countdown');
 const timerBadge = document.getElementById('timer-badge');
-const resultPanel = document.getElementById('result-panel');
+const feedbackSection = document.getElementById('feedback-section');
+const resultContent = document.getElementById('result-content');
+const idleMsg = document.getElementById('idle-msg');
 
 async function init() {
   const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -133,21 +147,18 @@ function checkSwingLogic(lm) {
   const oppWrist = hand === 'right' ? 15 : 16;
   const s = lm[main.s], e = lm[main.e], w = lm[main.w], ow = lm[oppWrist];
 
-  // 1. 헤드 드롭
   const elbowAngle = calcAngle(lm[main.s], lm[main.e], lm[main.w]);
-  if (elbowAngle < 98 && e.y < s.y) analysis.headDrop = true;
-  // 2. 정면 타구
-  if (Math.abs(w.x - s.x) < 0.16 && w.y < s.y) analysis.faceFront = true;
-  // 3. 최고 타점
+  if (elbowAngle < 100 && e.y < s.y) analysis.headDrop = true;
+  if (Math.abs(w.x - s.x) < 0.18 && w.y < s.y) analysis.faceFront = true;
   const dist = Math.sqrt(Math.pow(w.x-s.x,2) + Math.pow(w.y-s.y,2));
   if (dist > 0.3) analysis.maxExtension = true;
-  // 4. 반대 손
   if (ow.y < lm[11].y || ow.y < lm[12].y) analysis.oppositeHand = true;
 }
 
 function handleStart() {
   if (isReplaying) return location.reload();
-  resultPanel.style.display = 'none';
+  idleMsg.style.display = 'none';
+  resultContent.style.display = 'none';
   btn.disabled = true;
   let count = 3;
   countdownEl.textContent = count;
@@ -199,11 +210,13 @@ function showResult() {
   btn.classList.remove('rec');
   timerBadge.style.display = 'none';
   document.getElementById('replay-label').style.display = 'block';
-  resultPanel.style.display = 'block';
+  
+  idleMsg.style.display = 'none';
+  resultContent.style.display = 'block';
   
   const results = [analysis.headDrop, analysis.faceFront, analysis.maxExtension, analysis.oppositeHand];
   const score = results.filter(Boolean).length;
-  document.getElementById('final-score').textContent = `결과: ${score}/4`;
+  document.getElementById('final-score').textContent = `SCORE: ${score}/4`;
   
   results.forEach((res, i) => {
     const el = document.getElementById(`c${i+1}`);

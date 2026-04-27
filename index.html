@@ -3,83 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🏸 Badminton Pro Coach V4</title>
+<title>🏸 AI Swing Coach - Video Match</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
     --bg: #060d1a; --surface: #0c1628; --card: #111e35; --border: #1c2e4a;
     --cyan: #00e5ff; --orange: #ff6b35; --green: #00ff88; --red: #ff3d5a; --text: #ddeeff; --muted: #3a5070;
   }
-  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
   
-  #header { padding: 15px; background: var(--surface); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
-  #options { padding: 10px 15px; background: var(--card); display: flex; align-items: center; gap: 10px; font-size: 13px; }
-  select { background: var(--surface); color: var(--cyan); border: 1px solid var(--border); padding: 5px; border-radius: 5px; outline: none; }
+  #header { padding: 12px 15px; background: var(--surface); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+  
+  /* 메인 레이아웃: 좌우 분할 */
+  #main-split { display: flex; flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; gap: 2px; background: var(--border); }
+  .view-pane { flex: 1; position: relative; background: #000; aspect-ratio: 9/16; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 
-  #cam-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; overflow: hidden; }
+  /* 왼쪽: 유튜브 */
+  #yt-frame { width: 100%; height: 100%; border: none; }
+  
+  /* 오른쪽: 카메라 */
   video, #replay-video { width: 100%; height: 100%; object-fit: cover; }
   #skeleton-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-  
-  #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); color: white; font-size: 80px; font-weight: 900; z-index: 10; }
-  #timer-badge { position: absolute; top: 10px; right: 15px; background: var(--red); color: white; padding: 5px 12px; border-radius: 20px; font-weight: bold; display: none; z-index: 5; }
-  #replay-label { position: absolute; top: 10px; left: 12px; background: var(--orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; display: none; z-index: 5; }
 
-  #result-summary { padding: 15px; background: var(--surface); margin: 10px 15px; border-radius: 12px; border: 1px solid var(--border); display: none; }
-  .score-title { font-size: 18px; font-weight: 800; color: #ffd234; margin-bottom: 10px; text-align: center; }
-  .check-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--border); }
+  /* 오버레이 */
+  #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); color: white; font-size: 60px; font-weight: 900; z-index: 10; }
+  #timer-badge { position: absolute; top: 10px; right: 10px; background: var(--red); color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; display: none; z-index: 5; }
+  #replay-label { position: absolute; top: 10px; left: 10px; background: var(--orange); color: white; padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 800; display: none; z-index: 5; }
+
+  /* 컨트롤 및 결과 */
+  #controls { padding: 15px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+  #options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  select { background: var(--card); color: var(--cyan); border: 1px solid var(--border); padding: 6px; border-radius: 8px; }
+
+  #result-summary { padding: 15px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); display: none; margin-bottom: 10px; }
+  .score-title { font-size: 18px; font-weight: 800; color: #ffd234; text-align: center; margin-bottom: 10px; }
+  .check-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: var(--muted); }
   .check-item.success { color: var(--green); }
-  .check-item.fail { color: var(--muted); }
 
-  #btn-main { margin: 10px 15px 30px; height: 65px; border-radius: 15px; border: none; background: linear-gradient(135deg, var(--cyan), #0099bb); font-size: 18px; font-weight: 800; cursor: pointer; color: #001a22; }
+  #btn-main { height: 60px; border-radius: 15px; border: none; background: linear-gradient(135deg, var(--cyan), #0099bb); font-size: 16px; font-weight: 800; cursor: pointer; color: #001a22; }
   #btn-main.rec { background: var(--red); color: white; }
+
+  /* 모바일 대응: 세로로 쌓기 */
+  @media (max-width: 768px) {
+    #main-split { flex-direction: column; }
+    .view-pane { aspect-ratio: 4/3; }
+  }
 </style>
 </head>
 <body>
 
 <div id="header">
-  <div style="font-weight: 800; color: var(--cyan);">🏸 BADMINTON ANALYZER</div>
-  <div id="status-dot" style="font-size: 11px; color: var(--muted);">● STANDBY</div>
+  <div style="font-weight: 800; color: var(--cyan); font-size: 14px;">🏸 MASTER SWING MATCH</div>
+  <div id="status-dot" style="font-size: 10px; color: var(--muted);">● SYSTEM READY</div>
 </div>
 
-<div id="options">
-  주사용 손: 
-  <select id="hand-select">
-    <option value="right">오른손잡이 (Right)</option>
-    <option value="left">왼손잡이 (Left)</option>
-  </select>
-</div>
-
-<div id="cam-wrap">
-  <div id="countdown">3</div>
-  <div id="timer-badge">REC 10s</div>
-  <div id="replay-label">SLOW REPLAY (0.5x)</div>
-  <video id="video" playsinline muted autoplay></video>
-  <video id="replay-video" playsinline loop></video>
-  <svg id="skeleton-svg" viewBox="0 0 640 480"></svg>
-</div>
-
-<div id="result-summary">
-  <div class="score-title" id="final-score">분석 결과: 0/4</div>
-  <div id="check-list">
-    <div class="check-item" id="c1">1. 팔꿈치 리드 스윙 <span>-</span></div>
-    <div class="check-item" id="c2">2. 임팩트 시 정면 유지 <span>-</span></div>
-    <div class="check-item" id="c3">3. 최고 타점 히팅 <span>-</span></div>
-    <div class="check-item" id="c4">4. 반대 손 활용(작용-반작용) <span>-</span></div>
+<div id="main-split">
+  <div class="view-pane">
+    <iframe id="yt-frame" src="https://www.youtube.com/embed/2w6k95Oe6YE?autoplay=1&mute=1&loop=1&playlist=2w6k95Oe6YE" allow="autoplay; encrypted-media"></iframe>
+  </div>
+  
+  <div class="view-pane">
+    <div id="countdown">3</div>
+    <div id="timer-badge">REC 10s</div>
+    <div id="replay-label">SLOW REPLAY (0.5x)</div>
+    <video id="video" playsinline muted autoplay></video>
+    <video id="replay-video" playsinline loop></video>
+    <svg id="skeleton-svg" viewBox="0 0 640 480"></svg>
   </div>
 </div>
 
-<button id="btn-main" onclick="handleStart()">측정 시작</button>
+<div id="controls">
+  <div id="options">
+    <span style="font-size: 13px;">학생 주사용 손:</span>
+    <select id="hand-select">
+      <option value="right">오른손잡이</option>
+      <option value="left">왼손잡이</option>
+    </select>
+  </div>
+
+  <div id="result-summary">
+    <div class="score-title" id="final-score">분석 결과: 0/4</div>
+    <div id="check-list">
+      <div class="check-item" id="c1">1. 헤드 드롭 (머리 뒤로 내리기) <span>미흡</span></div>
+      <div class="check-item" id="c2">2. 임팩트 시 정면 유지 <span>미흡</span></div>
+      <div class="check-item" id="c3">3. 최고 타점 확장 <span>미흡</span></div>
+      <div class="check-item" id="c4">4. 비주도 손 활용 <span>미흡</span></div>
+    </div>
+  </div>
+
+  <button id="btn-main" onclick="handleStart()">분석 시작 (3초 후 녹화)</button>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 <script>
 let pose, mediaRecorder, chunks = [];
 let isRecording = false, isReplaying = false;
-let analysis = { elbowLead:false, faceFront:false, maxExtension:false, oppositeHand:false };
+let analysis = { headDrop:false, faceFront:false, maxExtension:false, oppositeHand:false };
 
 const video = document.getElementById('video');
 const replayVid = document.getElementById('replay-video');
 const btn = document.getElementById('btn-main');
 const countdownEl = document.getElementById('countdown');
+const timerBadge = document.getElementById('timer-badge');
 
 async function init() {
   const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -91,12 +116,9 @@ async function init() {
   pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
   pose.onResults(onResults);
 
-  // ── 핵심 루프: 리플레이 중에도 포즈 전송 ──
   const run = async () => { 
     const source = isReplaying ? replayVid : video;
-    if (source.readyState >= 2) {
-      await pose.send({ image: source }); 
-    }
+    if (source.readyState >= 2) await pose.send({ image: source }); 
     requestAnimationFrame(run); 
   };
   
@@ -109,20 +131,28 @@ async function init() {
 function onResults(res) {
   if (!res.poseLandmarks) return;
   draw(res.poseLandmarks);
-  if (isRecording) checkSwing(res.poseLandmarks);
+  if (isRecording) checkSwingLogic(res.poseLandmarks);
 }
 
-function checkSwing(lm) {
+function checkSwingLogic(lm) {
   const hand = document.getElementById('hand-select').value;
-  const side = hand === 'right' ? {s:12, e:14, w:16} : {s:11, e:13, w:15};
+  const main = hand === 'right' ? {s:12, e:14, w:16} : {s:11, e:13, w:15};
   const oppWrist = hand === 'right' ? 15 : 16;
 
-  const s = lm[side.s], e = lm[side.e], w = lm[side.w], ow = lm[oppWrist];
+  const s = lm[main.s], e = lm[main.e], w = lm[main.w], ow = lm[oppWrist];
 
-  if (e.y < s.y && e.x > w.x) analysis.elbowLead = true;
-  if (Math.abs(w.x - s.x) < 0.12 && w.y < s.y) analysis.faceFront = true;
-  const ext = Math.sqrt(Math.pow(w.x-s.x,2) + Math.pow(w.y-s.y,2));
-  if (ext > 0.28) analysis.maxExtension = true;
+  // 1. 영상 강조: 헤드 드롭 (스윙 전 팔꿈치 각도가 좁아지며 머리 뒤로 넘어가는지)
+  const elbowAngle = calcAngle(lm[main.s], lm[main.e], lm[main.w]);
+  if (elbowAngle < 90 && e.y < s.y) analysis.headDrop = true;
+
+  // 2. 임팩트 정면 (손목 위치가 어깨 선상을 지날 때)
+  if (Math.abs(w.x - s.x) < 0.15 && w.y < s.y) analysis.faceFront = true;
+
+  // 3. 최고 타점 (어깨-손목 거리)
+  const dist = Math.sqrt(Math.pow(w.x-s.x,2) + Math.pow(w.y-s.y,2));
+  if (dist > 0.28) analysis.maxExtension = true;
+
+  // 4. 비주도 손 활용 (작용-반작용)
   if (ow.y < lm[11].y || ow.y < lm[12].y) analysis.oppositeHand = true;
 }
 
@@ -130,6 +160,7 @@ function handleStart() {
   if (isReplaying) return location.reload();
   
   let count = 3;
+  countdownEl.textContent = count;
   countdownEl.style.display = 'flex';
   btn.disabled = true;
 
@@ -147,7 +178,7 @@ function handleStart() {
 function startRec() {
   isRecording = true;
   chunks = [];
-  analysis = { elbowLead:false, faceFront:false, maxExtension:false, oppositeHand:false };
+  analysis = { headDrop:false, faceFront:false, maxExtension:false, oppositeHand:false };
   
   mediaRecorder = new MediaRecorder(video.srcObject);
   mediaRecorder.ondataavailable = e => chunks.push(e.data);
@@ -155,11 +186,24 @@ function startRec() {
   mediaRecorder.start();
   
   btn.disabled = false;
-  btn.textContent = "녹화 중 (10초)...";
   btn.classList.add('rec');
-  document.getElementById('timer-badge').style.display = 'block';
+  timerBadge.style.display = 'block';
   
-  setTimeout(() => { if(isRecording) mediaRecorder.stop(); isRecording = false; }, 10000);
+  let timeLeft = 10;
+  const recTimer = setInterval(() => {
+    timeLeft--;
+    timerBadge.textContent = `REC ${timeLeft}s`;
+    btn.textContent = `분석 녹화 중 (${timeLeft}s)...`;
+    if (timeLeft <= 0) {
+      clearInterval(recTimer);
+      if(isRecording) stopRecording();
+    }
+  }, 1000);
+}
+
+function stopRecording() {
+  isRecording = false;
+  mediaRecorder.stop();
 }
 
 function showResult() {
@@ -172,19 +216,28 @@ function showResult() {
   replayVid.playbackRate = 0.5;
   replayVid.play();
   
-  btn.textContent = "다시 측정하기";
+  btn.textContent = "새로 측정하기";
   btn.classList.remove('rec');
-  document.getElementById('timer-badge').style.display = 'none';
+  timerBadge.style.display = 'none';
   document.getElementById('replay-label').style.display = 'block';
   document.getElementById('result-summary').style.display = 'block';
   
-  const score = [analysis.elbowLead, analysis.faceFront, analysis.maxExtension, analysis.oppositeHand].filter(Boolean).length;
+  const results = [analysis.headDrop, analysis.faceFront, analysis.maxExtension, analysis.oppositeHand];
+  const score = results.filter(Boolean).length;
   document.getElementById('final-score').textContent = `분석 결과: ${score}/4`;
-  [analysis.elbowLead, analysis.faceFront, analysis.maxExtension, analysis.oppositeHand].forEach((res, i) => {
+  
+  results.forEach((res, i) => {
     const el = document.getElementById(`c${i+1}`);
-    el.className = res ? 'check-item success' : 'check-item fail';
+    el.className = res ? 'check-item success' : 'check-item';
     el.querySelector('span').textContent = res ? '성공' : '미흡';
   });
+}
+
+function calcAngle(a, b, c) {
+  const d1 = {x:a.x-b.x, y:a.y-b.y}, d2 = {x:c.x-b.x, y:c.y-b.y};
+  const dot = d1.x*d2.x + d1.y*d2.y;
+  const m = Math.sqrt(d1.x**2+d1.y**2) * Math.sqrt(d2.x**2+d2.y**2);
+  return Math.acos(Math.min(1, Math.max(-1, dot/m))) * 180 / Math.PI;
 }
 
 function draw(lm) {

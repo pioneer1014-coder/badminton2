@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏸 Badminton Pro Analyzer V2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #060d1a; --surface: #0c1628; --card: #111e35; --border: #1c2e4a;
+    --cyan: #00e5ff; --orange: #ff6b35; --green: #00ff88;
+    --yellow: #ffd234; --red: #ff3d5a; --text: #ddeeff; --muted: #3a5070;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; }
+
+  @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes slideUp{ from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes glow   { 0%,100%{box-shadow:0 0 8px #00e5ff44} 50%{box-shadow:0 0 20px #00e5ff99} }
+
+  /* Header */
+  #header { padding: 14px 18px 10px; background: var(--surface); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  #header .title { font-size: 15px; font-weight: 800; background: linear-gradient(90deg, var(--cyan), var(--orange)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  
+  #timer-badge { display: none; background: var(--red); color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; animation: pulse 1s infinite; }
+
+  /* Viewport (Camera & Replay) */
+  #cam-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; overflow: hidden; }
+  #video, #replay-video { width: 100%; height: 100%; object-fit: cover; }
+  #replay-video { display: none; background: #000; }
+  #skeleton-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  
+  #placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; }
+  #live-badge { position: absolute; bottom: 10px; right: 12px; background: #00000099; border-radius: 12px; padding: 3px 10px; color: var(--red); font-size: 10px; font-weight: 700; display: none; }
+  #replay-label { position: absolute; top: 10px; left: 12px; background: var(--orange); color: white; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; display: none; }
+
+  /* Metrics & Feedback */
+  #metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px 14px 8px; }
+  .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; text-align: center; }
+  .metric-label { color: var(--muted); font-size: 9px; margin-bottom: 5px; text-transform: uppercase; }
+  .metric-val { font-size: 20px; font-weight: 800; color: var(--muted); }
+
+  #feedback-panel { margin: 0 14px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; min-height: 80px; }
+  #fb-title { color: var(--muted); font-size: 9px; letter-spacing: 2px; margin-bottom: 6px; }
+  #fb-text { color: var(--text); font-size: 13px; line-height: 1.6; }
+
+  /* Controls */
+  #controls { padding: 12px 14px 24px; display: flex; gap: 10px; }
+  #btn-main { flex: 1; height: 55px; border-radius: 14px; background: linear-gradient(135deg, var(--cyan), #0099bb); color: #001a22; border: none; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+  #btn-main.recording { background: var(--red); color: white; animation: pulse 1s infinite; }
+  #btn-main.replay { background: var(--orange); color: white; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="title">🏸 SWING ANALYZER PRO</div>
+  <div id="timer-badge">REC 00:10</div>
+</div>
+
+<div id="cam-wrap">
+  <video id="video" playsinline muted autoplay></video>
+  <video id="replay-video" playsinline></video>
+  <svg id="skeleton-svg" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="placeholder">
+    <div style="font-size:40px">🏸</div>
+    <div style="font-size:12px; color:var(--muted)" id="hint-text">모델 로딩 중...</div>
+  </div>
+  <div id="live-badge">LIVE</div>
+  <div id="replay-label">SLOW REPLAY (0.5x)</div>
+</div>
+
+<div id="metrics">
+  <div class="metric-card">
+    <div class="metric-label">팔꿈치 각도</div>
+    <div class="metric-val" id="m-elbow">—</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">손목 위치</div>
+    <div class="metric-val" id="m-wrist">—</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">분석 상태</div>
+    <div class="metric-val" id="m-status" style="font-size:14px">대기</div>
+  </div>
+</div>
+
+<div id="feedback-panel">
+  <div id="fb-title">🤖 AI 분석 리포트</div>
+  <div id="fb-text">녹화 버튼을 눌러 스윙을 10초간 촬영하세요.</div>
+</div>
+
+<div id="controls">
+  <button id="btn-main" disabled onclick="handleMainAction()">잠시만 기다려주세요</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+<script>
+let pose, stream, mediaRecorder, recordedChunks = [];
+let isRecording = false, isReplaying = false;
+let landmarks = null;
+const video = document.getElementById("video");
+const replayVideo = document.getElementById("replay-video");
+const btnMain = document.getElementById("btn-main");
+const timerBadge = document.getElementById("timer-badge");
+
+// ── 분석 데이터 저장용 ──
+let sessionData = { maxElbow: 0, minElbow: 180, maxWristH: 0 };
+
+function calcAngle(a, b, c) {
+  if (!a || !b || !c) return null;
+  const ab = { x: a.x-b.x, y: a.y-b.y }, cb = { x: c.x-b.x, y: c.y-b.y };
+  const dot = ab.x*cb.x + ab.y*cb.y;
+  const mag = Math.sqrt(ab.x**2+ab.y**2) * Math.sqrt(cb.x**2+cb.y**2);
+  return Math.acos(Math.min(1, Math.max(-1, dot/mag))) * 180 / Math.PI;
+}
+
+async function handleMainAction() {
+  if (!isRecording && !isReplaying) startRecording();
+  else if (isReplaying) resetToLive();
+}
+
+async function startRecording() {
+  isRecording = true;
+  recordedChunks = [];
+  sessionData = { maxElbow: 0, minElbow: 180, maxWristH: 0 };
+  
+  btnMain.textContent = "녹화 중 (10초)...";
+  btnMain.classList.add("recording");
+  timerBadge.style.display = "block";
+  
+  // 녹화 시작
+  mediaRecorder = new MediaRecorder(video.srcObject);
+  mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+  mediaRecorder.onstop = showReplay;
+  mediaRecorder.start();
+
+  let timeLeft = 10;
+  const timer = setInterval(() => {
+    timeLeft--;
+    timerBadge.textContent = `REC 00:0${timeLeft}`;
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      stopRecording();
+    }
+  }, 1000);
+}
+
+function stopRecording() {
+  isRecording = false;
+  mediaRecorder.stop();
+  btnMain.textContent = "분석 중...";
+  btnMain.classList.remove("recording");
+  timerBadge.style.display = "none";
+}
+
+function showReplay() {
+  const blob = new Blob(recordedChunks, { type: "video/webm" });
+  const url = URL.createObjectURL(blob);
+  
+  isReplaying = true;
+  video.style.display = "none";
+  replayVideo.style.display = "block";
+  document.getElementById("replay-label").style.display = "block";
+  document.getElementById("live-badge").style.display = "none";
+  
+  replayVideo.src = url;
+  replayVideo.playbackRate = 0.5; // 슬로우 모션
+  replayVideo.loop = true;
+  replayVideo.play();
+  
+  btnMain.textContent = "다시 촬영하기";
+  btnMain.classList.add("replay");
+  
+  fetchAIResult();
+}
+
+function resetToLive() {
+  isReplaying = false;
+  replayVideo.pause();
+  replayVideo.style.display = "none";
+  document.getElementById("replay-label").style.display = "none";
+  document.getElementById("live-badge").style.display = "flex";
+  video.style.display = "block";
+  btnMain.textContent = "녹화 시작 (10초)";
+  btnMain.classList.remove("replay");
+  document.getElementById("fb-text").textContent = "준비가 되면 녹화 버튼을 누르세요.";
+}
+
+async function fetchAIResult() {
+  document.getElementById("fb-text").innerHTML = "🔍 영상을 분석하여 맞춤 코칭을 생성하고 있습니다...";
+  
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-3-5-sonnet-20240620",
+        max_tokens: 150,
+        messages: [{
+          role: "user",
+          content: `배드민턴 스매시 분석 결과:
+          - 백스윙 팔꿈치 최소 각도: ${Math.round(sessionData.minElbow)}도 (작을수록 좋음)
+          - 임팩트 팔꿈치 최대 각도: ${Math.round(sessionData.maxElbow)}도 (클수록 좋음)
+          - 손목 최고 높이: ${sessionData.maxWristH}% 
+
+          위 데이터를 바탕으로 다음 3가지를 중점적으로 2문장 내외로 피드백해줘:
+          1. 팔꿈치가 높게 들렸는지 2. 손목 스냅이 타구 시점에 작용했는지 3. 라켓면이 정면을 향했을지 추정. 
+          따뜻한 선생님 말투로 친절하게.`
+        }],
+      }),
+    });
+    const data = await res.json();
+    document.getElementById("fb-text").textContent = data.content[0].text;
+  } catch(e) {
+    document.getElementById("fb-text").textContent = "분석 완료! 팔꿈치를 더 높게 들고 손목을 끝까지 채주면 더 강력한 스윙이 됩니다. (API 연결 확인 필요)";
+  }
+}
+
+// ── 카메라 및 Pose 설정 ──
+async function init() {
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+  video.srcObject = stream;
+  
+  pose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+  pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5 });
+  
+  pose.onResults(results => {
+    if (!results.poseLandmarks) return;
+    const lm = results.poseLandmarks;
+    drawSkeleton(lm);
+    
+    // 데이터 수집
+    const elbowAngle = calcAngle(lm[12], lm[14], lm[16]);
+    const wristH = Math.round((1 - lm[16].y) * 100);
+    
+    if (isRecording && elbowAngle) {
+      sessionData.maxElbow = Math.max(sessionData.maxElbow, elbowAngle);
+      sessionData.minElbow = Math.min(sessionData.minElbow, elbowAngle);
+      sessionData.maxWristH = Math.max(sessionData.maxWristH, wristH);
+    }
+
+    document.getElementById("m-elbow").textContent = elbowAngle ? Math.round(elbowAngle) + "°" : "—";
+    document.getElementById("m-wrist").textContent = wristH + "%";
+    document.getElementById("m-status").textContent = isRecording ? "녹화중" : "대기";
+  });
+
+  const runPose = async () => {
+    if (!isReplaying) await pose.send({ image: video });
+    requestAnimationFrame(runPose);
+  };
+  
+  video.onloadedmetadata = () => {
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("live-badge").style.display = "flex";
+    btnMain.disabled = false;
+    btnMain.textContent = "녹화 시작 (10초)";
+    runPose();
+  };
+}
+
+function drawSkeleton(lm) {
+  const svg = document.getElementById("skeleton-svg");
+  svg.innerHTML = "";
+  const pts = lm.map(l => ({ x: l.x * 640, y: l.y * 480 }));
+  const connections = [[11,12], [12,14], [14,16], [11,13], [13,15]];
+  
+  connections.forEach(([a, b]) => {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", pts[a].x); line.setAttribute("y1", pts[a].y);
+    line.setAttribute("x2", pts[b].x); line.setAttribute("y2", pts[b].y);
+    line.setAttribute("stroke", "#00e5ff"); line.setAttribute("stroke-width", "4");
+    svg.appendChild(line);
+  });
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
